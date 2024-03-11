@@ -1,0 +1,73 @@
+const std = @import("std");
+
+pub const qoi_header = packed struct {
+    magic: magic_string,
+    width: u32,
+    height: u32,
+    channels: u8,
+    colour_space: u8,
+
+    pub const magic_string = packed struct {
+        m: u8,
+        a: u8,
+        g: u8,
+        i: u8,
+
+        pub fn str(self: magic_string) [4]u8 {
+            return .{ self.m, self.a, self.g, self.i };
+        }
+
+        pub fn from_bytes(bytes: []const u8) header_error!magic_string {
+            const m: u8 = bytes[@offsetOf(magic_string, "m")];
+            if (m != valid_str[0]) {
+                return error.WrongFiletype;
+            }
+            const a: u8 = bytes[@offsetOf(magic_string, "a")];
+            if (a != valid_str[1]) {
+                return error.WrongFiletype;
+            }
+            const g: u8 = bytes[@offsetOf(magic_string, "g")];
+            if (g != valid_str[2]) {
+                return error.WrongFiletype;
+            }
+            const i: u8 = bytes[@offsetOf(magic_string, "i")];
+            if (i != valid_str[3]) {
+                return header_error.WrongFiletype;
+            }
+
+            return .{
+                .m = m,
+                .a = a,
+                .g = g,
+                .i = i,
+            };
+        }
+
+        pub const valid_str = "qoif";
+    };
+
+    pub const header_error = error{
+        InvalidHeader,
+        WrongFiletype,
+    };
+
+    pub fn from_bytes(bytes: []const u8) header_error!qoi_header {
+        if (bytes.len < @sizeOf(qoi_header)) {
+            return header_error.InvalidHeader;
+        }
+        const header_bytes = bytes[0..@sizeOf(qoi_header)];
+        const magic = try magic_string.from_bytes(header_bytes[0..@sizeOf(qoi_header.magic_string)]);
+        const width = std.mem.readVarInt(u32, header_bytes[@offsetOf(qoi_header, "width") .. @offsetOf(qoi_header, "width") + @sizeOf(u32)], std.builtin.Endian.Big);
+        const height = std.mem.readVarInt(u32, header_bytes[@offsetOf(qoi_header, "height") .. @offsetOf(qoi_header, "height") + @sizeOf(u32)], std.builtin.Endian.Big);
+        const channels: u8 = header_bytes[@offsetOf(qoi_header, "channels")];
+        const colour_space: u8 = header_bytes[@offsetOf(qoi_header, "colour_space")];
+
+        return .{
+            .magic = magic,
+            .width = width,
+            .height = height,
+            .channels = channels,
+            .colour_space = colour_space,
+        };
+    }
+};
