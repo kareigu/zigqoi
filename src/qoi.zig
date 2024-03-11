@@ -113,9 +113,8 @@ pub const QoiImage = struct {
 
     fn decode_pixels(alloc: std.mem.Allocator, header: QoiHeader, bytes: []const u8) QoiError![]const Pixel {
         var pixels = alloc.alloc(Pixel, header.width * header.height) catch return QoiError.OutOfMemory;
-        var x: u32 = 0;
-        var y: u32 = 0;
 
+        var pixel_i: u64 = 0;
         var i: u64 = 0;
         var prev_pixel: Pixel = .{ .r = 0, .g = 0, .b = 0, .a = 255 };
         while (i < bytes.len) {
@@ -130,7 +129,7 @@ pub const QoiImage = struct {
 
                 const p = .{ .r = r, .g = g, .b = b, .a = prev_pixel.a };
                 prev_pixel = p;
-                pixels[x * y] = p;
+                pixels[pixel_i] = p;
             } else if (instruction == @intFromEnum(QOI_OP.QOI_OP_RGBA)) {
                 i += 1;
                 const r: u8 = bytes[i];
@@ -143,14 +142,10 @@ pub const QoiImage = struct {
 
                 const pixel = .{ .r = r, .g = g, .b = b, .a = a };
                 prev_pixel = pixel;
-                pixels[x * y] = pixel;
+                pixels[pixel_i] = pixel;
             }
 
-            x += 1;
-            if (x >= 4) {
-                y += 1;
-                x = 0;
-            }
+            pixel_i += 1;
             i += 1;
         }
         return pixels;
