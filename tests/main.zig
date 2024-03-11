@@ -26,7 +26,7 @@ pub fn main() !void {
     const bytes_read = try stream.readAll(buffer);
     std.debug.print("read {} bytes\n", .{bytes_read});
 
-    var image = zigqoi.qoi_image.from_bytes(buffer) catch |e| {
+    var image = zigqoi.qoi_image.from_bytes(alloc, buffer) catch |e| {
         std.debug.print("ERROR: {s}\n", .{@errorName(e)});
         std.process.exit(1);
     };
@@ -39,8 +39,10 @@ pub fn main() !void {
 
     std.debug.print("data:\n", .{});
     var x: u32 = 0;
-    for (image.data) |byte| {
-        std.debug.print("{x:0^2} ", .{byte});
+    for (image.pixels) |pixel| {
+        std.debug.print("\x1b[48;2;{};{};{}m", .{ pixel.r, pixel.g, pixel.b });
+        std.debug.print("{x:0^2}{x:0^2}{x:0^2} ", .{ pixel.r, pixel.g, pixel.b });
+        std.debug.print("\x1b[0m", .{});
         x += 1;
         if (x >= image.header.width) {
             std.debug.print("\n", .{});

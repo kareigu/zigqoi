@@ -79,20 +79,58 @@ const pixel = packed struct {
     a: u8,
 };
 
+const QOI_OP = enum(u8) {
+    QOI_OP_RGB = 0b11111110,
+};
+
 pub const qoi_image = struct {
     header: qoi_header,
-    data: []const u8,
+    pixels: []const pixel,
 
     pub const qoi_error = error{
         Malformed,
+        OutOfMemory,
     };
 
-    pub fn from_bytes(bytes: []const u8) !qoi_image {
+    pub fn from_bytes(alloc: std.mem.Allocator, bytes: []const u8) !qoi_image {
         var header = try qoi_header.from_bytes(bytes);
+        var pixels = try decode_pixels(alloc, header, bytes[@bitSizeOf(qoi_header) / 8 .. bytes.len]);
 
         return .{
             .header = header,
-            .data = bytes[@bitSizeOf(qoi_header) / 8 .. bytes.len],
+            .pixels = pixels,
         };
+    }
+
+    fn decode_pixels(alloc: std.mem.Allocator, header: qoi_header, bytes: []const u8) qoi_error![]const pixel {
+        var pixels = alloc.alloc(pixel, header.width * header.height) catch return qoi_error.OutOfMemory;
+        var x: u32 = 0;
+        var y: u32 = 0;
+
+        var i: u64 = 0;
+        var prev_pixel: pixel = .{ .r = 0, .g = 0, .b = 0, .a = 255 };
+        while (i < bytes.len) {
+            const instruction = bytes[i];
+            if (instruction == @intFromEnum(QOI_OP.QOI_OP_RGB)) {
+                i += 1;
+                const r: u8 = bytes[i];
+                i += 1;
+                const g: u8 = bytes[i];
+                i += 1;
+                const b: u8 = bytes[i];
+
+                const p = .{ .r = r, .g = g, .b = b, .a = prev_pixel.a };
+                prev_pixel = p;
+                pixels[x * y] = p;
+            }
+
+            x += 1;
+            if (x >= 4) {
+                y += 1;
+                x = 0;
+            }
+            i += 1;
+        }
+        return pixels;
     }
 };
