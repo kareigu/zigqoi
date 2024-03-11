@@ -26,7 +26,7 @@ pub fn main() !void {
     const bytes_read = try stream.readAll(buffer);
     std.debug.print("read {} bytes\n", .{bytes_read});
 
-    var image = zigqoi.qoi_image.from_bytes(alloc, buffer) catch |e| {
+    var image = zigqoi.QoiImage.from_bytes(alloc, buffer) catch |e| {
         std.debug.print("ERROR: {s}\n", .{@errorName(e)});
         std.process.exit(1);
     };

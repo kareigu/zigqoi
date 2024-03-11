@@ -1,6 +1,6 @@
 const std = @import("std");
 
-pub const qoi_header = packed struct {
+pub const QoiHeader = packed struct {
     magic: magic_string,
     width: u32,
     height: u32,
@@ -51,16 +51,16 @@ pub const qoi_header = packed struct {
         WrongFiletype,
     };
 
-    pub fn from_bytes(bytes: []const u8) header_error!qoi_header {
-        if (bytes.len < @sizeOf(qoi_header)) {
+    pub fn from_bytes(bytes: []const u8) header_error!QoiHeader {
+        if (bytes.len < @sizeOf(QoiHeader)) {
             return header_error.InvalidHeader;
         }
-        const header_bytes = bytes[0 .. @bitSizeOf(qoi_header) / 8];
-        const magic = try magic_string.from_bytes(header_bytes[0 .. @bitSizeOf(qoi_header.magic_string) / 8]);
-        const width = std.mem.readVarInt(u32, header_bytes[@offsetOf(qoi_header, "width") .. @offsetOf(qoi_header, "width") + @sizeOf(u32)], std.builtin.Endian.Big);
-        const height = std.mem.readVarInt(u32, header_bytes[@offsetOf(qoi_header, "height") .. @offsetOf(qoi_header, "height") + @sizeOf(u32)], std.builtin.Endian.Big);
-        const channels: u8 = header_bytes[@offsetOf(qoi_header, "channels")];
-        const colour_space: u8 = header_bytes[@offsetOf(qoi_header, "colour_space")];
+        const header_bytes = bytes[0 .. @bitSizeOf(QoiHeader) / 8];
+        const magic = try magic_string.from_bytes(header_bytes[0 .. @bitSizeOf(QoiHeader.magic_string) / 8]);
+        const width = std.mem.readVarInt(u32, header_bytes[@offsetOf(QoiHeader, "width") .. @offsetOf(QoiHeader, "width") + @sizeOf(u32)], std.builtin.Endian.Big);
+        const height = std.mem.readVarInt(u32, header_bytes[@offsetOf(QoiHeader, "height") .. @offsetOf(QoiHeader, "height") + @sizeOf(u32)], std.builtin.Endian.Big);
+        const channels: u8 = header_bytes[@offsetOf(QoiHeader, "channels")];
+        const colour_space: u8 = header_bytes[@offsetOf(QoiHeader, "colour_space")];
 
         return .{
             .magic = magic,
@@ -72,7 +72,7 @@ pub const qoi_header = packed struct {
     }
 };
 
-const pixel = packed struct {
+const Pixel = packed struct {
     r: u8,
     g: u8,
     b: u8,
@@ -88,18 +88,18 @@ const QOI_OP = enum(u8) {
     QOI_OP_RUN = 0b11000000,
 };
 
-pub const qoi_image = struct {
-    header: qoi_header,
-    pixels: []const pixel,
+pub const QoiImage = struct {
+    header: QoiHeader,
+    pixels: []const Pixel,
 
     pub const qoi_error = error{
         Malformed,
         OutOfMemory,
     };
 
-    pub fn from_bytes(alloc: std.mem.Allocator, bytes: []const u8) !qoi_image {
-        var header = try qoi_header.from_bytes(bytes);
-        var pixels = try decode_pixels(alloc, header, bytes[@bitSizeOf(qoi_header) / 8 .. bytes.len]);
+    pub fn from_bytes(alloc: std.mem.Allocator, bytes: []const u8) !QoiImage {
+        var header = try QoiHeader.from_bytes(bytes);
+        var pixels = try decode_pixels(alloc, header, bytes[@bitSizeOf(QoiHeader) / 8 .. bytes.len]);
 
         return .{
             .header = header,
@@ -107,17 +107,17 @@ pub const qoi_image = struct {
         };
     }
 
-    pub fn free(self: qoi_image, alloc: std.mem.Allocator) void {
+    pub fn free(self: QoiImage, alloc: std.mem.Allocator) void {
         alloc.free(self.pixels);
     }
 
-    fn decode_pixels(alloc: std.mem.Allocator, header: qoi_header, bytes: []const u8) qoi_error![]const pixel {
-        var pixels = alloc.alloc(pixel, header.width * header.height) catch return qoi_error.OutOfMemory;
+    fn decode_pixels(alloc: std.mem.Allocator, header: QoiHeader, bytes: []const u8) qoi_error![]const Pixel {
+        var pixels = alloc.alloc(Pixel, header.width * header.height) catch return qoi_error.OutOfMemory;
         var x: u32 = 0;
         var y: u32 = 0;
 
         var i: u64 = 0;
-        var prev_pixel: pixel = .{ .r = 0, .g = 0, .b = 0, .a = 255 };
+        var prev_pixel: Pixel = .{ .r = 0, .g = 0, .b = 0, .a = 255 };
         while (i < bytes.len) {
             const instruction = bytes[i];
             if (instruction == @intFromEnum(QOI_OP.QOI_OP_RGB)) {
@@ -141,9 +141,9 @@ pub const qoi_image = struct {
                 i += 1;
                 const a: u8 = bytes[i];
 
-                const p = .{ .r = r, .g = g, .b = b, .a = a };
-                prev_pixel = p;
-                pixels[x * y] = p;
+                const pixel = .{ .r = r, .g = g, .b = b, .a = a };
+                prev_pixel = pixel;
+                pixels[x * y] = pixel;
             }
 
             x += 1;
