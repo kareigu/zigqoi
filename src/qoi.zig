@@ -127,6 +127,19 @@ pub const qoi_image = struct {
                 const p = .{ .r = r, .g = g, .b = b, .a = prev_pixel.a };
                 prev_pixel = p;
                 pixels[x * y] = p;
+            } else if (instruction == @intFromEnum(QOI_OP.QOI_OP_RGBA)) {
+                i += 1;
+                const r: u8 = bytes[i];
+                i += 1;
+                const g: u8 = bytes[i];
+                i += 1;
+                const b: u8 = bytes[i];
+                i += 1;
+                const a: u8 = bytes[i];
+
+                const p = .{ .r = r, .g = g, .b = b, .a = a };
+                prev_pixel = p;
+                pixels[x * y] = p;
             }
 
             x += 1;
