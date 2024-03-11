@@ -36,4 +36,16 @@ pub fn main() !void {
     std.debug.print("  height: {}\n", .{image.header.height});
     std.debug.print("  channels: {}\n", .{image.header.channels});
     std.debug.print("  colour_space: {}\n", .{image.header.colour_space});
+
+    std.debug.print("data:\n", .{});
+    var x: u32 = 0;
+    for (image.data) |byte| {
+        std.debug.print("{x} ", .{byte});
+        x += 1;
+        if (x > image.header.width) {
+            std.debug.print("\n", .{});
+            x = 0;
+        }
+    }
+    std.debug.print("\n", .{});
 }
