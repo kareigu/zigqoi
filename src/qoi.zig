@@ -17,7 +17,7 @@ pub const QoiHeader = packed struct {
             return .{ self.m, self.a, self.g, self.i };
         }
 
-        pub fn from_bytes(bytes: []const u8) header_error!magic_string {
+        pub fn from_bytes(bytes: []const u8) HeaderError!magic_string {
             const m: u8 = bytes[@offsetOf(magic_string, "m")];
             if (m != valid_str[0]) {
                 return error.WrongFiletype;
@@ -32,7 +32,7 @@ pub const QoiHeader = packed struct {
             }
             const i: u8 = bytes[@offsetOf(magic_string, "i")];
             if (i != valid_str[3]) {
-                return header_error.WrongFiletype;
+                return HeaderError.WrongFiletype;
             }
 
             return .{
@@ -46,14 +46,14 @@ pub const QoiHeader = packed struct {
         pub const valid_str = "qoif";
     };
 
-    pub const header_error = error{
+    pub const HeaderError = error{
         InvalidHeader,
         WrongFiletype,
     };
 
-    pub fn from_bytes(bytes: []const u8) header_error!QoiHeader {
+    pub fn from_bytes(bytes: []const u8) HeaderError!QoiHeader {
         if (bytes.len < @sizeOf(QoiHeader)) {
-            return header_error.InvalidHeader;
+            return HeaderError.InvalidHeader;
         }
         const header_bytes = bytes[0 .. @bitSizeOf(QoiHeader) / 8];
         const magic = try magic_string.from_bytes(header_bytes[0 .. @bitSizeOf(QoiHeader.magic_string) / 8]);
@@ -92,7 +92,7 @@ pub const QoiImage = struct {
     header: QoiHeader,
     pixels: []const Pixel,
 
-    pub const qoi_error = error{
+    pub const QoiError = error{
         Malformed,
         OutOfMemory,
     };
@@ -111,8 +111,8 @@ pub const QoiImage = struct {
         alloc.free(self.pixels);
     }
 
-    fn decode_pixels(alloc: std.mem.Allocator, header: QoiHeader, bytes: []const u8) qoi_error![]const Pixel {
-        var pixels = alloc.alloc(Pixel, header.width * header.height) catch return qoi_error.OutOfMemory;
+    fn decode_pixels(alloc: std.mem.Allocator, header: QoiHeader, bytes: []const u8) QoiError![]const Pixel {
+        var pixels = alloc.alloc(Pixel, header.width * header.height) catch return QoiError.OutOfMemory;
         var x: u32 = 0;
         var y: u32 = 0;
 
