@@ -38,7 +38,7 @@ pub fn main() !void {
     std.debug.print("  channels: {}\n", .{image.header.channels});
     std.debug.print("  colour_space: {}\n", .{image.header.colour_space});
 
-    std.debug.print("data:\n", .{});
+    std.debug.print("pixels:\n", .{});
     var x: u32 = 0;
     for (image.pixels) |pixel| {
         std.debug.print("\x1b[48;2;{};{};{}m", .{ pixel.r, pixel.g, pixel.b });
