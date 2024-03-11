@@ -26,11 +26,14 @@ pub fn main() !void {
     const bytes_read = try stream.readAll(buffer);
     std.debug.print("read {} bytes\n", .{bytes_read});
 
-    var header = try zigqoi.qoi_header.from_bytes(buffer);
+    var image = zigqoi.qoi_image.from_bytes(buffer) catch |e| {
+        std.debug.print("ERROR: {s}\n", .{@errorName(e)});
+        std.process.exit(1);
+    };
     std.debug.print("header for '{s}':\n", .{filepath});
-    std.debug.print("  magic: {s}\n", .{header.magic.str()});
-    std.debug.print("  width: {}\n", .{header.width});
-    std.debug.print("  height: {}\n", .{header.height});
-    std.debug.print("  channels: {}\n", .{header.channels});
-    std.debug.print("  colour_space: {}\n", .{header.colour_space});
+    std.debug.print("  magic: {s}\n", .{image.header.magic.str()});
+    std.debug.print("  width: {}\n", .{image.header.width});
+    std.debug.print("  height: {}\n", .{image.header.height});
+    std.debug.print("  channels: {}\n", .{image.header.channels});
+    std.debug.print("  colour_space: {}\n", .{image.header.colour_space});
 }

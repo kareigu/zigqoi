@@ -71,3 +71,28 @@ pub const qoi_header = packed struct {
         };
     }
 };
+
+const pixel = packed struct {
+    r: u8,
+    g: u8,
+    b: u8,
+    a: u8,
+};
+
+pub const qoi_image = struct {
+    header: qoi_header,
+    data: []const u8,
+
+    pub const qoi_error = error{
+        Malformed,
+    };
+
+    pub fn from_bytes(bytes: []const u8) !qoi_image {
+        var header = try qoi_header.from_bytes(bytes);
+
+        return .{
+            .header = header,
+            .data = bytes[@sizeOf(qoi_header)..bytes.len],
+        };
+    }
+};
