@@ -24,3 +24,8 @@ test "read QoiImage" {
     try std.testing.expect(image.pixels.len == image.header.width * image.header.height);
     try std.testing.expectError(zigqoi.QoiHeader.header_error.WrongFiletype, zigqoi.QoiImage.from_bytes(alloc, png_file));
 }
+
+test "read QoiImage OutOfMemory" {
+    const fail_alloc = std.testing.failing_allocator;
+    try std.testing.expectError(zigqoi.QoiImage.qoi_error.OutOfMemory, zigqoi.QoiImage.from_bytes(fail_alloc, test_file));
+}
