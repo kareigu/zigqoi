@@ -107,6 +107,10 @@ pub const qoi_image = struct {
         };
     }
 
+    pub fn free(self: qoi_image, alloc: std.mem.Allocator) void {
+        alloc.free(self.pixels);
+    }
+
     fn decode_pixels(alloc: std.mem.Allocator, header: qoi_header, bytes: []const u8) qoi_error![]const pixel {
         var pixels = alloc.alloc(pixel, header.width * header.height) catch return qoi_error.OutOfMemory;
         var x: u32 = 0;

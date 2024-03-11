@@ -30,6 +30,7 @@ pub fn main() !void {
         std.debug.print("ERROR: {s}\n", .{@errorName(e)});
         std.process.exit(1);
     };
+    defer image.free(alloc);
     std.debug.print("header for '{s}':\n", .{filepath});
     std.debug.print("  magic: {s}\n", .{image.header.magic.str()});
     std.debug.print("  width: {}\n", .{image.header.width});
