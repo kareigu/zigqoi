@@ -55,8 +55,8 @@ pub const qoi_header = packed struct {
         if (bytes.len < @sizeOf(qoi_header)) {
             return header_error.InvalidHeader;
         }
-        const header_bytes = bytes[0..@sizeOf(qoi_header)];
-        const magic = try magic_string.from_bytes(header_bytes[0..@sizeOf(qoi_header.magic_string)]);
+        const header_bytes = bytes[0 .. @bitSizeOf(qoi_header) / 8];
+        const magic = try magic_string.from_bytes(header_bytes[0 .. @bitSizeOf(qoi_header.magic_string) / 8]);
         const width = std.mem.readVarInt(u32, header_bytes[@offsetOf(qoi_header, "width") .. @offsetOf(qoi_header, "width") + @sizeOf(u32)], std.builtin.Endian.Big);
         const height = std.mem.readVarInt(u32, header_bytes[@offsetOf(qoi_header, "height") .. @offsetOf(qoi_header, "height") + @sizeOf(u32)], std.builtin.Endian.Big);
         const channels: u8 = header_bytes[@offsetOf(qoi_header, "channels")];
@@ -92,7 +92,7 @@ pub const qoi_image = struct {
 
         return .{
             .header = header,
-            .data = bytes[@sizeOf(qoi_header)..bytes.len],
+            .data = bytes[@bitSizeOf(qoi_header) / 8 .. bytes.len],
         };
     }
 };

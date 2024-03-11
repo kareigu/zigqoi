@@ -40,9 +40,9 @@ pub fn main() !void {
     std.debug.print("data:\n", .{});
     var x: u32 = 0;
     for (image.data) |byte| {
-        std.debug.print("{x} ", .{byte});
+        std.debug.print("{x:0^2} ", .{byte});
         x += 1;
-        if (x > image.header.width) {
+        if (x >= image.header.width) {
             std.debug.print("\n", .{});
             x = 0;
         }
