@@ -118,7 +118,12 @@ pub const QoiImage = struct {
         var i: u64 = 0;
         var prev_pixel: Pixel = .{ .r = 0, .g = 0, .b = 0, .a = 255 };
         while (i < bytes.len) {
+            if (pixel_i >= pixels.len) {
+                break;
+            }
+
             const instruction = bytes[i];
+            var pixel = prev_pixel;
             if (instruction == @intFromEnum(QOI_OP.QOI_OP_RGB)) {
                 i += 1;
                 const r: u8 = bytes[i];
@@ -127,9 +132,7 @@ pub const QoiImage = struct {
                 i += 1;
                 const b: u8 = bytes[i];
 
-                const p = .{ .r = r, .g = g, .b = b, .a = prev_pixel.a };
-                prev_pixel = p;
-                pixels[pixel_i] = p;
+                pixel = .{ .r = r, .g = g, .b = b, .a = prev_pixel.a };
             } else if (instruction == @intFromEnum(QOI_OP.QOI_OP_RGBA)) {
                 i += 1;
                 const r: u8 = bytes[i];
@@ -140,20 +143,17 @@ pub const QoiImage = struct {
                 i += 1;
                 const a: u8 = bytes[i];
 
-                const pixel = .{ .r = r, .g = g, .b = b, .a = a };
-                prev_pixel = pixel;
-                pixels[pixel_i] = pixel;
+                pixel = .{ .r = r, .g = g, .b = b, .a = a };
             } else if (instruction >> 6 == @intFromEnum(QOI_OP.QOI_OP_DIFF) >> 6) {
                 const r_diff: u2 = @truncate(instruction >> 4);
                 const g_diff: u2 = @truncate(instruction >> 2);
                 const b_diff: u2 = @truncate(instruction);
-                var pixel = prev_pixel;
                 pixel.r = calc_diff(pixel.r, r_diff);
                 pixel.g = calc_diff(pixel.g, g_diff);
                 pixel.b = calc_diff(pixel.b, b_diff);
-                prev_pixel = pixel;
-                pixels[pixel_i] = pixel;
             }
+            prev_pixel = pixel;
+            pixels[pixel_i] = pixel;
 
             pixel_i += 1;
             i += 1;
