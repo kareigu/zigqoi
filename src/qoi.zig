@@ -144,9 +144,9 @@ pub const QoiImage = struct {
                 prev_pixel = pixel;
                 pixels[pixel_i] = pixel;
             } else if (instruction >> 6 == @intFromEnum(QOI_OP.QOI_OP_DIFF) >> 6) {
-                const r_diff: u8 = (instruction & 0b00110000) >> 4;
-                const g_diff: u8 = (instruction & 0b00001100) >> 2;
-                const b_diff: u8 = instruction & 0b00000011;
+                const r_diff: u2 = @truncate(instruction >> 4);
+                const g_diff: u2 = @truncate(instruction >> 2);
+                const b_diff: u2 = @truncate(instruction);
                 var pixel = prev_pixel;
                 pixel.r = calc_diff(pixel.r, r_diff);
                 pixel.g = calc_diff(pixel.g, g_diff);
@@ -161,12 +161,12 @@ pub const QoiImage = struct {
         return pixels;
     }
 
-    fn calc_diff(colour: u8, diff: u8) u8 {
+    fn calc_diff(colour: u8, diff: u2) u8 {
         return switch (diff) {
             0 => colour -% 2,
             1 => colour -% 1,
+            2 => colour,
             3 => colour +% 1,
-            else => colour,
         };
     }
 };
