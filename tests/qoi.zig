@@ -5,6 +5,7 @@ const zigqoi = @import("zigqoi");
 const alloc = std.testing.allocator;
 
 const four_by_four = @embedFile("4x4.qoi");
+const six_by_six = @embedFile("6x6.qoi");
 const png_file = @embedFile("4x4.png");
 
 test "read QoiHeader" {
@@ -27,4 +28,22 @@ test "read QoiImage" {
 test "read QoiImage OutOfMemory" {
     const fail_alloc = std.testing.failing_allocator;
     try std.testing.expectError(zigqoi.QoiImage.QoiError.OutOfMemory, zigqoi.QoiImage.from_bytes(fail_alloc, four_by_four));
+}
+
+test "validate QoiImage" {
+    var image = try zigqoi.QoiImage.from_bytes(alloc, six_by_six);
+    defer image.free(alloc);
+    std.debug.print("g = {}\n", .{image.pixels[10]});
+    try std.testing.expect(image.pixels[8].r == 0xeb);
+    try std.testing.expect(image.pixels[8].g == 0x00);
+    try std.testing.expect(image.pixels[8].b == 0x14);
+    try std.testing.expect(image.pixels[10].r == 0xed);
+    try std.testing.expect(image.pixels[10].g == 0x01);
+    try std.testing.expect(image.pixels[10].b == 0x13);
+    try std.testing.expect(image.pixels[18].r == 0xb2);
+    try std.testing.expect(image.pixels[18].g == 0x0a);
+    try std.testing.expect(image.pixels[18].b == 0x57);
+    try std.testing.expect(image.pixels[27].r == 0x7e);
+    try std.testing.expect(image.pixels[27].g == 0x17);
+    try std.testing.expect(image.pixels[27].b == 0x98);
 }

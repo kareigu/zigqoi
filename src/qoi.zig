@@ -43,6 +43,13 @@ const Pixel = packed struct {
     g: u8,
     b: u8,
     a: u8,
+
+    pub fn hash_index(self: Pixel) u6 {
+        return @truncate((self.r *% 3 +% self.g *% 5 +% self.b *% 7 +% self.a *% 11) % 64);
+    }
+    pub fn add_signed(val: *u8, diff: i8) void {
+        val.* +%= @bitCast(diff);
+    }
 };
 
 const QOI_OP = enum(u8) {
@@ -83,11 +90,8 @@ pub const QoiImage = struct {
         var pixel_i: u64 = 0;
         var i: u64 = 0;
         var prev_pixel: Pixel = .{ .r = 0, .g = 0, .b = 0, .a = 255 };
-        while (i < bytes.len) {
-            if (pixel_i >= pixels.len) {
-                break;
-            }
-
+        var pixel_index: [64]Pixel = .{};
+        while (i < bytes.len and pixel_i < pixels.len) {
             const instruction = bytes[i];
             var pixel = prev_pixel;
             if (instruction == @intFromEnum(QOI_OP.QOI_OP_RGB)) {
@@ -110,15 +114,36 @@ pub const QoiImage = struct {
                 const a: u8 = bytes[i];
 
                 pixel = .{ .r = r, .g = g, .b = b, .a = a };
+            } else if (instruction >> 6 == @intFromEnum(QOI_OP.QOI_OP_INDEX) >> 6) {
+                const index: u6 = @truncate(instruction);
+                pixel = pixel_index[index];
             } else if (instruction >> 6 == @intFromEnum(QOI_OP.QOI_OP_DIFF) >> 6) {
                 const r_diff: u2 = @truncate(instruction >> 4);
                 const g_diff: u2 = @truncate(instruction >> 2);
                 const b_diff: u2 = @truncate(instruction);
-                pixel.r = calc_diff(pixel.r, r_diff);
-                pixel.g = calc_diff(pixel.g, g_diff);
-                pixel.b = calc_diff(pixel.b, b_diff);
+                Pixel.add_signed(&pixel.r, rm_bias_u2(r_diff));
+                Pixel.add_signed(&pixel.g, rm_bias_u2(g_diff));
+                Pixel.add_signed(&pixel.b, rm_bias_u2(b_diff));
+            } else if (instruction >> 6 == @intFromEnum(QOI_OP.QOI_OP_LUMA) >> 6) {
+                const g_diff: i8 = rm_bias_u6(@truncate(instruction));
+                Pixel.add_signed(&pixel.g, g_diff);
+                i += 1;
+                const rb_diff = bytes[i];
+                const r_diff: i8 = g_diff + rm_bias_u4(@truncate(rb_diff >> 4));
+                const b_diff: i8 = g_diff + rm_bias_u4(@truncate(rb_diff));
+                Pixel.add_signed(&pixel.r, r_diff);
+                Pixel.add_signed(&pixel.b, b_diff);
+            } else if (instruction >> 6 == @intFromEnum(QOI_OP.QOI_OP_RUN) >> 6) {
+                const run_length: u6 = @truncate(instruction);
+                for (0..run_length + 1) |_| {
+                    pixels[pixel_i] = prev_pixel;
+                    pixel_i += 1;
+                }
+                i += 1;
+                continue;
             }
             prev_pixel = pixel;
+            pixel_index[pixel.hash_index()] = pixel;
             pixels[pixel_i] = pixel;
 
             pixel_i += 1;
@@ -127,12 +152,19 @@ pub const QoiImage = struct {
         return pixels;
     }
 
-    fn calc_diff(colour: u8, diff: u2) u8 {
-        return switch (diff) {
-            0 => colour -% 2,
-            1 => colour -% 1,
-            2 => colour,
-            3 => colour +% 1,
-        };
+    fn bias_amount(comptime T: type) i8 {
+        return std.math.maxInt(T) + 1;
+    }
+
+    fn rm_bias_u2(n: u2) i2 {
+        return @intCast(@as(i8, n) - bias_amount(i2));
+    }
+
+    fn rm_bias_u4(n: u4) i4 {
+        return @intCast(@as(i8, n) - bias_amount(i4));
+    }
+
+    fn rm_bias_u6(n: u6) i6 {
+        return @intCast(@as(i8, n) - bias_amount(i6));
     }
 };
