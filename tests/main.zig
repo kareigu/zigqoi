@@ -41,7 +41,7 @@ pub fn main() !void {
     var x: u32 = 0;
     for (image.pixels) |pixel| {
         std.debug.print("\x1b[48;2;{};{};{}m", .{ pixel.r, pixel.g, pixel.b });
-        std.debug.print("{x:0^2}{x:0^2}{x:0^2} ", .{ pixel.r, pixel.g, pixel.b });
+        std.debug.print("{x:0>2}{x:0>2}{x:0>2} ", .{ pixel.r, pixel.g, pixel.b });
         std.debug.print("\x1b[0m", .{});
         x += 1;
         if (x >= image.header.width) {
