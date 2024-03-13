@@ -1,69 +1,35 @@
 const std = @import("std");
 
 pub const QoiHeader = packed struct {
-    magic: magic_string,
     width: u32,
     height: u32,
     channels: u8,
     colour_space: u8,
-
-    pub const magic_string = packed struct {
-        m: u8,
-        a: u8,
-        g: u8,
-        i: u8,
-
-        pub fn str(self: magic_string) [4]u8 {
-            return .{ self.m, self.a, self.g, self.i };
-        }
-
-        pub fn from_bytes(bytes: []const u8) HeaderError!magic_string {
-            const m: u8 = bytes[@offsetOf(magic_string, "m")];
-            if (m != valid_str[0]) {
-                return error.WrongFiletype;
-            }
-            const a: u8 = bytes[@offsetOf(magic_string, "a")];
-            if (a != valid_str[1]) {
-                return error.WrongFiletype;
-            }
-            const g: u8 = bytes[@offsetOf(magic_string, "g")];
-            if (g != valid_str[2]) {
-                return error.WrongFiletype;
-            }
-            const i: u8 = bytes[@offsetOf(magic_string, "i")];
-            if (i != valid_str[3]) {
-                return HeaderError.WrongFiletype;
-            }
-
-            return .{
-                .m = m,
-                .a = a,
-                .g = g,
-                .i = i,
-            };
-        }
-
-        pub const valid_str = "qoif";
-    };
 
     pub const HeaderError = error{
         InvalidHeader,
         WrongFiletype,
     };
 
+    const correct_magic = "qoif";
+    pub const size = 14;
+
     pub fn from_bytes(bytes: []const u8) HeaderError!QoiHeader {
         if (bytes.len < @sizeOf(QoiHeader)) {
             return HeaderError.InvalidHeader;
         }
-        const header_bytes = bytes[0 .. @bitSizeOf(QoiHeader) / 8];
-        const magic = try magic_string.from_bytes(header_bytes[0 .. @bitSizeOf(QoiHeader.magic_string) / 8]);
-        const width = std.mem.readVarInt(u32, header_bytes[@offsetOf(QoiHeader, "width") .. @offsetOf(QoiHeader, "width") + @sizeOf(u32)], std.builtin.Endian.Big);
-        const height = std.mem.readVarInt(u32, header_bytes[@offsetOf(QoiHeader, "height") .. @offsetOf(QoiHeader, "height") + @sizeOf(u32)], std.builtin.Endian.Big);
+        if (!std.mem.eql(u8, bytes[0..correct_magic.len], correct_magic)) {
+            return HeaderError.WrongFiletype;
+        }
+        const header_bytes = bytes[correct_magic.len..size];
+        const width_offset = @offsetOf(QoiHeader, "width");
+        const width = std.mem.readInt(u32, header_bytes[width_offset .. width_offset + @sizeOf(u32)], .Big);
+        const height_offset = @offsetOf(QoiHeader, "width");
+        const height = std.mem.readInt(u32, header_bytes[height_offset .. height_offset + @sizeOf(u32)], .Big);
         const channels: u8 = header_bytes[@offsetOf(QoiHeader, "channels")];
         const colour_space: u8 = header_bytes[@offsetOf(QoiHeader, "colour_space")];
 
         return .{
-            .magic = magic,
             .width = width,
             .height = height,
             .channels = channels,
@@ -99,7 +65,7 @@ pub const QoiImage = struct {
 
     pub fn from_bytes(alloc: std.mem.Allocator, bytes: []const u8) !QoiImage {
         var header = try QoiHeader.from_bytes(bytes);
-        var pixels = try decode_pixels(alloc, header, bytes[@bitSizeOf(QoiHeader) / 8 .. bytes.len]);
+        var pixels = try decode_pixels(alloc, header, bytes[QoiHeader.size..bytes.len]);
 
         return .{
             .header = header,

@@ -32,7 +32,6 @@ pub fn main() !void {
     };
     defer image.free(alloc);
     std.debug.print("header for '{s}':\n", .{filepath});
-    std.debug.print("  magic: {s}\n", .{image.header.magic.str()});
     std.debug.print("  width: {}\n", .{image.header.width});
     std.debug.print("  height: {}\n", .{image.header.height});
     std.debug.print("  channels: {}\n", .{image.header.channels});
