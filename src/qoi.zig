@@ -230,6 +230,7 @@ pub const QoiImage = struct {
         var bytes = try alloc.alloc(u8, offset + size + end_marker_length);
 
         var prev_pixel = Pixel{ .r = 0, .g = 0, .b = 0, .a = 255 };
+        var pixel_index: [64]Pixel = .{};
         var i: u64 = offset;
         var pixel_i: u64 = 0;
         while (pixel_i < self.pixels.len) {
@@ -244,6 +245,10 @@ pub const QoiImage = struct {
                 const byte = @intFromEnum(QOI_OP.QOI_OP_RUN) | run_length;
                 bytes[i] = byte;
                 i += 1;
+            } else if (is_in_index(pixel_index, pixel)) {
+                const byte = @intFromEnum(QOI_OP.QOI_OP_INDEX) | pixel.hash_index();
+                bytes[i] = byte;
+                i += 1;
             } else {
                 bytes[i] = @intFromEnum(QOI_OP.QOI_OP_RGB);
                 i += 1;
@@ -254,6 +259,7 @@ pub const QoiImage = struct {
                 bytes[i] = pixel.b;
                 i += 1;
             }
+            pixel_index[pixel.hash_index()] = pixel;
             prev_pixel = pixel;
             pixel_i += 1;
         }
@@ -267,6 +273,13 @@ pub const QoiImage = struct {
         }
         shrinked_bytes[shrinked_bytes.len - 1] = 0x01;
         return shrinked_bytes;
+    }
+
+    fn is_in_index(pixel_index: [64]Pixel, pixel: Pixel) bool {
+        if (std.meta.eql(pixel_index[pixel.hash_index()], pixel))
+            return true;
+
+        return false;
     }
 
     fn bias_amount(comptime T: type) i8 {
