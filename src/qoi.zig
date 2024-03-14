@@ -1,17 +1,34 @@
+//!
+//! zigqoi
+//! library functions for encoding/decoding qoi formatted image data.
+//!
 const std = @import("std");
 
+///
+/// Header metadata of a qoi formatted image.
+///
 pub const QoiHeader = packed struct {
+    /// Image width in pixels
     width: u32,
+    /// Image height in pixels
     height: u32,
+    /// Number of colour channels in the image
+    /// 3 = RGB
+    /// 4 = RGBA
     channels: u8,
+    /// Colour space used in the image
+    /// 0 = sRGB with linear alpa
+    /// 1 = all channels linear
     colour_space: u8,
 
-    pub const HeaderError = error{
+    pub const HeaderDecodingError = error{
         InvalidHeader,
         WrongFiletype,
     };
 
     const correct_magic = "qoif";
+
+    /// Header size bytes
     pub const size = 14;
 
     pub fn init(width: u32, height: u32, channels: u8, colour_space: u8) QoiHeader {
@@ -23,12 +40,15 @@ pub const QoiHeader = packed struct {
         };
     }
 
-    pub fn from_bytes(bytes: []const u8) HeaderError!QoiHeader {
+    ///
+    /// Decode qoi image header data from a byte array
+    ///
+    pub fn from_bytes(bytes: []const u8) HeaderDecodingError!QoiHeader {
         if (bytes.len < @sizeOf(QoiHeader)) {
-            return HeaderError.InvalidHeader;
+            return HeaderDecodingError.InvalidHeader;
         }
         if (!std.mem.eql(u8, bytes[0..correct_magic.len], correct_magic)) {
-            return HeaderError.WrongFiletype;
+            return HeaderDecodingError.WrongFiletype;
         }
         const header_bytes = bytes[correct_magic.len..size];
         const width_offset = @offsetOf(QoiHeader, "width");
@@ -46,6 +66,9 @@ pub const QoiHeader = packed struct {
         };
     }
 
+    ///
+    /// Encode QoiHeader into a byte array
+    ///
     pub fn to_bytes(self: QoiHeader) [size]u8 {
         var header: [size]u8 = std.mem.zeroes([size]u8);
         @memcpy(header[0..correct_magic.len], correct_magic);
@@ -59,6 +82,9 @@ pub const QoiHeader = packed struct {
     }
 };
 
+///
+/// A pixel containing colour data in the 8 bit RGBA format
+///
 pub const Pixel = packed struct {
     r: u8,
     g: u8,
@@ -82,15 +108,24 @@ const QOI_OP = enum(u8) {
     QOI_OP_RUN = 0b11000000,
 };
 
+///
+/// Struct containing the header metadata
+/// and an array of `Pixel`s of a qoi formatted image.
+///
 pub const QoiImage = struct {
     header: QoiHeader,
     pixels: []const Pixel,
 
-    pub const QoiError = error{
+    pub const QoiDecodingError = error{
+        /// Decoded pixel data was malformed
         Malformed,
         OutOfMemory,
     };
 
+    ///
+    /// Decode an array of bytes into a QoiImage
+    /// Input bytes need to be correctly encoded qoi data.
+    ///
     pub fn from_bytes(alloc: std.mem.Allocator, bytes: []const u8) !QoiImage {
         var header = try QoiHeader.from_bytes(bytes);
         var pixels = try decode_pixels(alloc, header, bytes[QoiHeader.size..bytes.len]);
@@ -101,6 +136,9 @@ pub const QoiImage = struct {
         };
     }
 
+    ///
+    /// Encode a QoiImage into bytes according to the qoi specification.
+    ///
     pub fn to_bytes(self: QoiImage, alloc: std.mem.Allocator) ![]const u8 {
         const header_bytes = self.header.to_bytes();
         var bytes = try self.encode_pixels(alloc);
@@ -110,12 +148,15 @@ pub const QoiImage = struct {
         return bytes;
     }
 
+    ///
+    /// Frees the underlying array of pixels.
+    ///
     pub fn free(self: QoiImage, alloc: std.mem.Allocator) void {
         alloc.free(self.pixels);
     }
 
-    fn decode_pixels(alloc: std.mem.Allocator, header: QoiHeader, bytes: []const u8) QoiError![]const Pixel {
-        var pixels = alloc.alloc(Pixel, header.width * header.height) catch return QoiError.OutOfMemory;
+    fn decode_pixels(alloc: std.mem.Allocator, header: QoiHeader, bytes: []const u8) QoiDecodingError![]const Pixel {
+        var pixels = alloc.alloc(Pixel, header.width * header.height) catch return QoiDecodingError.OutOfMemory;
 
         var pixel_i: u64 = 0;
         var i: u64 = 0;
@@ -151,16 +192,16 @@ pub const QoiImage = struct {
                 const r_diff: u2 = @truncate(instruction >> 4);
                 const g_diff: u2 = @truncate(instruction >> 2);
                 const b_diff: u2 = @truncate(instruction);
-                Pixel.add_signed(&pixel.r, rm_bias_u2(r_diff));
-                Pixel.add_signed(&pixel.g, rm_bias_u2(g_diff));
-                Pixel.add_signed(&pixel.b, rm_bias_u2(b_diff));
+                Pixel.add_signed(&pixel.r, rm_bias(u2, r_diff));
+                Pixel.add_signed(&pixel.g, rm_bias(u2, g_diff));
+                Pixel.add_signed(&pixel.b, rm_bias(u2, b_diff));
             } else if (instruction >> 6 == @intFromEnum(QOI_OP.QOI_OP_LUMA) >> 6) {
-                const g_diff: i8 = rm_bias_u6(@truncate(instruction));
+                const g_diff: i8 = rm_bias(u6, @as(u6, @truncate(instruction)));
                 Pixel.add_signed(&pixel.g, g_diff);
                 i += 1;
                 const rb_diff = bytes[i];
-                const r_diff: i8 = g_diff + rm_bias_u4(@truncate(rb_diff >> 4));
-                const b_diff: i8 = g_diff + rm_bias_u4(@truncate(rb_diff));
+                const r_diff: i8 = g_diff + rm_bias(u4, @as(u4, @truncate(rb_diff >> 4)));
+                const b_diff: i8 = g_diff + rm_bias(u4, @as(u4, @truncate(rb_diff)));
                 Pixel.add_signed(&pixel.r, r_diff);
                 Pixel.add_signed(&pixel.b, b_diff);
             } else if (instruction >> 6 == @intFromEnum(QOI_OP.QOI_OP_RUN) >> 6) {
@@ -210,15 +251,16 @@ pub const QoiImage = struct {
         return std.math.maxInt(T) + 1;
     }
 
-    fn rm_bias_u2(n: u2) i2 {
-        return @intCast(@as(i8, n) - bias_amount(i2));
+    fn bias_output_type(comptime T: type) type {
+        return switch (T) {
+            u2 => i2,
+            u4 => i4,
+            u6 => i6,
+            else => @compileError("Unsupported type"),
+        };
     }
 
-    fn rm_bias_u4(n: u4) i4 {
-        return @intCast(@as(i8, n) - bias_amount(i4));
-    }
-
-    fn rm_bias_u6(n: u6) i6 {
-        return @intCast(@as(i8, n) - bias_amount(i6));
+    fn rm_bias(comptime T: type, n: T) bias_output_type(T) {
+        return @intCast(@as(i8, n) - bias_amount(bias_output_type(T)));
     }
 };
