@@ -14,7 +14,7 @@ pub fn main() !void {
     var args = try std.process.argsAlloc(alloc);
     defer std.process.argsFree(alloc, args);
 
-    if (args.len <= 1) {
+    if (args.len <= 2) {
         std.debug.print("No path given\n", .{});
         std.process.exit(1);
     }
@@ -46,7 +46,7 @@ pub fn main() !void {
 
     switch (command) {
         .Decode => try decode(alloc, filepath, enable_hex_print),
-        .Encode => try encode(alloc),
+        .Encode => try encode(alloc, filepath),
         .Invalid => {
             std.debug.print("Select a command\n", .{});
             std.process.exit(1);
@@ -96,13 +96,39 @@ fn decode(alloc: std.mem.Allocator, filepath: []const u8, enable_hex_print: bool
     std.debug.print("\n", .{});
 }
 
-fn encode(alloc: std.mem.Allocator) !void {
+fn encode(alloc: std.mem.Allocator, filepath: []const u8) !void {
     const header = zigqoi.QoiHeader.init(4, 4, 3, 0);
-    const image = zigqoi.QoiImage{ .header = header, .pixels = std.mem.zeroes([]const zigqoi.Pixel) };
+    const pixels = [4 * 4]zigqoi.Pixel{
+        .{ .r = 255, .g = 255, .b = 255, .a = 255 },
+        .{ .r = 255, .g = 255, .b = 255, .a = 255 },
+        .{ .r = 255, .g = 255, .b = 255, .a = 255 },
+        .{ .r = 0, .g = 255, .b = 255, .a = 255 },
+        .{ .r = 255, .g = 0, .b = 255, .a = 255 },
+        .{ .r = 255, .g = 0, .b = 255, .a = 255 },
+        .{ .r = 255, .g = 255, .b = 255, .a = 255 },
+        .{ .r = 0, .g = 255, .b = 255, .a = 255 },
+        .{ .r = 255, .g = 255, .b = 255, .a = 255 },
+        .{ .r = 255, .g = 255, .b = 0, .a = 255 },
+        .{ .r = 255, .g = 255, .b = 255, .a = 255 },
+        .{ .r = 255, .g = 0, .b = 255, .a = 255 },
+        .{ .r = 255, .g = 255, .b = 255, .a = 255 },
+        .{ .r = 255, .g = 255, .b = 255, .a = 255 },
+        .{ .r = 255, .g = 0, .b = 0, .a = 255 },
+        .{ .r = 255, .g = 255, .b = 255, .a = 255 },
+    };
+    const image = zigqoi.QoiImage{ .header = header, .pixels = &pixels };
     const bytes = try image.to_bytes(alloc);
-    std.debug.print("encoded header({} bytes): ", .{bytes.len});
+    std.debug.print("encoded ({} bytes): ", .{bytes.len});
+
+    const file = try std.fs.cwd().createFile(filepath, .{});
+    defer file.close();
+
+    var buf_writer = std.io.bufferedWriter(file.writer());
+    var stream = buf_writer.writer();
     for (bytes) |byte| {
+        try stream.writeByte(byte);
         std.debug.print("{x:0>2}", .{byte});
     }
+    try buf_writer.flush();
     std.debug.print("\n", .{});
 }

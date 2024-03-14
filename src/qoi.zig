@@ -103,7 +103,7 @@ pub const QoiImage = struct {
 
     pub fn to_bytes(self: QoiImage, alloc: std.mem.Allocator) ![]const u8 {
         const header_bytes = self.header.to_bytes();
-        var bytes = try alloc.alloc(u8, QoiHeader.size + self.pixels.len);
+        var bytes = try self.encode_pixels(alloc);
 
         @memcpy(bytes[0..QoiHeader.size], &header_bytes);
 
@@ -180,6 +180,30 @@ pub const QoiImage = struct {
             i += 1;
         }
         return pixels;
+    }
+
+    fn encode_pixels(self: QoiImage, alloc: std.mem.Allocator) ![]u8 {
+        const offset = QoiHeader.size;
+        const size = self.pixels.len * 4;
+        var bytes = try alloc.alloc(u8, offset + size + 8);
+
+        var i: u64 = offset;
+        for (self.pixels) |pixel| {
+            bytes[i] = @intFromEnum(QOI_OP.QOI_OP_RGB);
+            i += 1;
+            bytes[i] = pixel.r;
+            i += 1;
+            bytes[i] = pixel.g;
+            i += 1;
+            bytes[i] = pixel.b;
+            i += 1;
+        }
+
+        for (bytes.len - 8..bytes.len - 1) |j| {
+            bytes[j] = 0x00;
+        }
+        bytes[bytes.len - 1] = 0x01;
+        return bytes;
     }
 
     fn bias_amount(comptime T: type) i8 {
