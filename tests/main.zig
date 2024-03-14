@@ -1,6 +1,12 @@
 const std = @import("std");
 const zigqoi = @import("zigqoi");
 
+const Command = enum {
+    Encode,
+    Decode,
+    Invalid,
+};
+
 pub fn main() !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
@@ -14,6 +20,7 @@ pub fn main() !void {
     }
 
     var filepath: []u8 = undefined;
+    var command = Command.Invalid;
     var enable_hex_print = false;
     for (args) |arg| {
         if (std.mem.startsWith(u8, arg, "--")) {
@@ -22,9 +29,32 @@ pub fn main() !void {
             }
             continue;
         }
+        if (std.mem.startsWith(u8, arg, "d")) {
+            if (arg.len == 1 or std.mem.eql(u8, arg, "decode")) {
+                command = .Decode;
+                continue;
+            }
+        }
+        if (std.mem.startsWith(u8, arg, "e")) {
+            if (arg.len == 1 or std.mem.eql(u8, arg, "encode")) {
+                command = .Encode;
+                continue;
+            }
+        }
         filepath = arg;
     }
 
+    switch (command) {
+        .Decode => try decode(alloc, filepath, enable_hex_print),
+        .Encode => unreachable,
+        .Invalid => {
+            std.debug.print("Select a command\n", .{});
+            std.process.exit(1);
+        },
+    }
+}
+
+fn decode(alloc: std.mem.Allocator, filepath: []const u8, enable_hex_print: bool) !void {
     const file = try std.fs.cwd().openFile(filepath, .{});
     defer file.close();
 
