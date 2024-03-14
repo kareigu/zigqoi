@@ -59,7 +59,7 @@ pub const QoiHeader = packed struct {
     }
 };
 
-const Pixel = packed struct {
+pub const Pixel = packed struct {
     r: u8,
     g: u8,
     b: u8,
@@ -99,6 +99,15 @@ pub const QoiImage = struct {
             .header = header,
             .pixels = pixels,
         };
+    }
+
+    pub fn to_bytes(self: QoiImage, alloc: std.mem.Allocator) ![]const u8 {
+        const header_bytes = self.header.to_bytes();
+        var bytes = try alloc.alloc(u8, QoiHeader.size + self.pixels.len);
+
+        @memcpy(bytes[0..QoiHeader.size], &header_bytes);
+
+        return bytes;
     }
 
     pub fn free(self: QoiImage, alloc: std.mem.Allocator) void {

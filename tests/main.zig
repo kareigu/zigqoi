@@ -97,10 +97,11 @@ fn decode(alloc: std.mem.Allocator, filepath: []const u8, enable_hex_print: bool
 }
 
 fn encode(alloc: std.mem.Allocator) !void {
-    _ = alloc;
-    const header = zigqoi.QoiHeader.init(4, 4, 3, 0).to_bytes();
-    std.debug.print("encoded header({} bytes): ", .{header.len});
-    for (header) |byte| {
+    const header = zigqoi.QoiHeader.init(4, 4, 3, 0);
+    const image = zigqoi.QoiImage{ .header = header, .pixels = std.mem.zeroes([]const zigqoi.Pixel) };
+    const bytes = try image.to_bytes(alloc);
+    std.debug.print("encoded header({} bytes): ", .{bytes.len});
+    for (bytes) |byte| {
         std.debug.print("{x:0>2}", .{byte});
     }
     std.debug.print("\n", .{});
