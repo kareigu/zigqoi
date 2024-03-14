@@ -13,7 +13,17 @@ pub fn main() !void {
         std.process.exit(1);
     }
 
-    const filepath = args[1];
+    var filepath: []u8 = undefined;
+    var enable_hex_print = false;
+    for (args) |arg| {
+        if (std.mem.startsWith(u8, arg, "--")) {
+            if (std.mem.eql(u8, arg[2..arg.len], "hex")) {
+                enable_hex_print = true;
+            }
+            continue;
+        }
+        filepath = arg;
+    }
 
     const file = try std.fs.cwd().openFile(filepath, .{});
     defer file.close();
@@ -41,7 +51,11 @@ pub fn main() !void {
     var x: u32 = 0;
     for (image.pixels) |pixel| {
         std.debug.print("\x1b[48;2;{};{};{}m", .{ pixel.r, pixel.g, pixel.b });
-        std.debug.print("{x:0>2}{x:0>2}{x:0>2} ", .{ pixel.r, pixel.g, pixel.b });
+        if (enable_hex_print) {
+            std.debug.print("{x:0>2}{x:0>2}{x:0>2} ", .{ pixel.r, pixel.g, pixel.b });
+        } else {
+            std.debug.print("  ", .{});
+        }
         std.debug.print("\x1b[0m", .{});
         x += 1;
         if (x >= image.header.width) {
