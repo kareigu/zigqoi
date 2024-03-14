@@ -226,25 +226,47 @@ pub const QoiImage = struct {
     fn encode_pixels(self: QoiImage, alloc: std.mem.Allocator) ![]u8 {
         const offset = QoiHeader.size;
         const size = self.pixels.len * 4;
-        var bytes = try alloc.alloc(u8, offset + size + 8);
+        const end_marker_length = 8;
+        var bytes = try alloc.alloc(u8, offset + size + end_marker_length);
 
+        var prev_pixel = Pixel{ .r = 0, .g = 0, .b = 0, .a = 255 };
         var i: u64 = offset;
-        for (self.pixels) |pixel| {
-            bytes[i] = @intFromEnum(QOI_OP.QOI_OP_RGB);
-            i += 1;
-            bytes[i] = pixel.r;
-            i += 1;
-            bytes[i] = pixel.g;
-            i += 1;
-            bytes[i] = pixel.b;
-            i += 1;
+        var pixel_i: u64 = 0;
+        while (pixel_i < self.pixels.len) {
+            const pixel = self.pixels[pixel_i];
+            if (std.meta.eql(pixel, prev_pixel)) {
+                var j: u64 = 1;
+                while (j + pixel_i < self.pixels.len and std.meta.eql(self.pixels[pixel_i + j], prev_pixel)) {
+                    j += 1;
+                }
+                const run_length: u6 = @truncate(j - 1);
+                pixel_i += run_length;
+                const byte = @intFromEnum(QOI_OP.QOI_OP_RUN) | run_length;
+                bytes[i] = byte;
+                i += 1;
+            } else {
+                bytes[i] = @intFromEnum(QOI_OP.QOI_OP_RGB);
+                i += 1;
+                bytes[i] = pixel.r;
+                i += 1;
+                bytes[i] = pixel.g;
+                i += 1;
+                bytes[i] = pixel.b;
+                i += 1;
+            }
+            prev_pixel = pixel;
+            pixel_i += 1;
         }
 
-        for (bytes.len - 8..bytes.len - 1) |j| {
-            bytes[j] = 0x00;
+        var shrinked_bytes = try alloc.alloc(u8, i + end_marker_length);
+        @memcpy(shrinked_bytes[0..i], bytes[0..i]);
+        alloc.free(bytes);
+
+        for (shrinked_bytes.len - 8..shrinked_bytes.len - 1) |j| {
+            shrinked_bytes[j] = 0x00;
         }
-        bytes[bytes.len - 1] = 0x01;
-        return bytes;
+        shrinked_bytes[shrinked_bytes.len - 1] = 0x01;
+        return shrinked_bytes;
     }
 
     fn bias_amount(comptime T: type) i8 {
