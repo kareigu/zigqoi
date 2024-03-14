@@ -33,7 +33,6 @@ test "read QoiImage OutOfMemory" {
 test "validate QoiImage" {
     var image = try zigqoi.QoiImage.from_bytes(alloc, six_by_six);
     defer image.free(alloc);
-    std.debug.print("g = {}\n", .{image.pixels[10]});
     try std.testing.expect(image.pixels[8].r == 0xeb);
     try std.testing.expect(image.pixels[8].g == 0x00);
     try std.testing.expect(image.pixels[8].b == 0x14);
