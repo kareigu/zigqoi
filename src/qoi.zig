@@ -14,6 +14,15 @@ pub const QoiHeader = packed struct {
     const correct_magic = "qoif";
     pub const size = 14;
 
+    pub fn init(width: u32, height: u32, channels: u8, colour_space: u8) QoiHeader {
+        return .{
+            .width = width,
+            .height = height,
+            .channels = channels,
+            .colour_space = colour_space,
+        };
+    }
+
     pub fn from_bytes(bytes: []const u8) HeaderError!QoiHeader {
         if (bytes.len < @sizeOf(QoiHeader)) {
             return HeaderError.InvalidHeader;
@@ -35,6 +44,18 @@ pub const QoiHeader = packed struct {
             .channels = channels,
             .colour_space = colour_space,
         };
+    }
+
+    pub fn to_bytes(self: QoiHeader) [size]u8 {
+        var header: [size]u8 = std.mem.zeroes([size]u8);
+        @memcpy(header[0..correct_magic.len], correct_magic);
+        const width_offset = correct_magic.len + @offsetOf(QoiHeader, "width");
+        std.mem.writeIntSliceBig(u32, header[width_offset .. width_offset + @sizeOf(u32)], self.width);
+        const height_offset = correct_magic.len + @offsetOf(QoiHeader, "height");
+        std.mem.writeIntSliceBig(u32, header[height_offset .. height_offset + @sizeOf(u32)], self.height);
+        header[@offsetOf(QoiHeader, "channels") + correct_magic.len] = self.channels;
+        header[@offsetOf(QoiHeader, "colour_space") + correct_magic.len] = self.colour_space;
+        return header;
     }
 };
 

@@ -46,7 +46,7 @@ pub fn main() !void {
 
     switch (command) {
         .Decode => try decode(alloc, filepath, enable_hex_print),
-        .Encode => unreachable,
+        .Encode => try encode(alloc),
         .Invalid => {
             std.debug.print("Select a command\n", .{});
             std.process.exit(1);
@@ -92,6 +92,16 @@ fn decode(alloc: std.mem.Allocator, filepath: []const u8, enable_hex_print: bool
             std.debug.print("\n", .{});
             x = 0;
         }
+    }
+    std.debug.print("\n", .{});
+}
+
+fn encode(alloc: std.mem.Allocator) !void {
+    _ = alloc;
+    const header = zigqoi.QoiHeader.init(4, 4, 3, 0).to_bytes();
+    std.debug.print("encoded header({} bytes): ", .{header.len});
+    for (header) |byte| {
+        std.debug.print("{x:0>2}", .{byte});
     }
     std.debug.print("\n", .{});
 }

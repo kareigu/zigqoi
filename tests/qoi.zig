@@ -46,3 +46,14 @@ test "validate QoiImage" {
     try std.testing.expect(image.pixels[27].g == 0x17);
     try std.testing.expect(image.pixels[27].b == 0x98);
 }
+
+test "encode QoiHeader" {
+    const header = zigqoi.QoiHeader.init(4, 6, 3, 0).to_bytes();
+    try std.testing.expect(std.mem.eql(u8, header[0..4], "qoif"));
+    const width = std.mem.readIntBig(u32, header[4..8]);
+    try std.testing.expect(width == 0x04);
+    const height = std.mem.readIntBig(u32, header[8..12]);
+    try std.testing.expect(height == 0x06);
+    try std.testing.expect(header[12] == 0x03);
+    try std.testing.expect(header[13] == 0x00);
+}
