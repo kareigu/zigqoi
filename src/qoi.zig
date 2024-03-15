@@ -121,6 +121,30 @@ pub const Pixel = packed struct {
 
         return diff;
     }
+
+    ///
+    /// Check if pixel could be encoded as QOI_OP_LUMA
+    /// Returns encoded pixels in a u8 tuple if possible
+    ///
+    pub fn luma_diffable(self: @This(), previous: @TypeOf(self)) ?[2]u8 {
+        var diff = [2]u8{ 0x00, 0x00 };
+        const g_diff = @as(i16, self.g) - @as(i16, previous.g);
+        if (g_diff > 31 or g_diff < -32)
+            return null;
+        diff[0] |= add_bias(@as(i6, @truncate(g_diff)));
+
+        const r_diff = (@as(i16, self.r) - @as(i16, previous.r)) - g_diff;
+        if (r_diff > 7 or r_diff < -8)
+            return null;
+        diff[1] |= @as(u8, add_bias(@as(i4, @truncate(r_diff)))) << 4;
+
+        const b_diff = (@as(i16, self.b) - @as(i16, previous.b)) - g_diff;
+        if (b_diff > 7 or b_diff < -8)
+            return null;
+        diff[1] |= add_bias(@as(i4, @truncate(b_diff)));
+
+        return diff;
+    }
 };
 
 const QOI_OP = enum(u8) {
@@ -277,6 +301,23 @@ pub const QoiImage = struct {
                 const byte = @intFromEnum(QOI_OP.QOI_OP_DIFF) | diff;
                 bytes[i] = byte;
                 i += 1;
+            } else if (pixel.luma_diffable(prev_pixel)) |luma_diff| {
+                const byte = @intFromEnum(QOI_OP.QOI_OP_LUMA) | luma_diff[0];
+                bytes[i] = byte;
+                i += 1;
+                bytes[i] = luma_diff[1];
+                i += 1;
+            } else if (pixel.a != prev_pixel.a) {
+                bytes[i] = @intFromEnum(QOI_OP.QOI_OP_RGBA);
+                i += 1;
+                bytes[i] = pixel.r;
+                i += 1;
+                bytes[i] = pixel.g;
+                i += 1;
+                bytes[i] = pixel.b;
+                i += 1;
+                bytes[i] = pixel.a;
+                i += 1;
             } else {
                 bytes[i] = @intFromEnum(QOI_OP.QOI_OP_RGB);
                 i += 1;
@@ -328,7 +369,7 @@ fn bias_output_type(comptime T: type) type {
 }
 
 fn add_bias(n: anytype) bias_output_type(@TypeOf(n)) {
-    return @truncate(@as(u16, @intCast(@as(i16, n) + 2)));
+    return @truncate(@as(u16, @intCast(@as(i16, n) + bias_amount(@TypeOf(n)))));
 }
 
 fn rm_bias(n: anytype) bias_output_type(@TypeOf(n)) {
