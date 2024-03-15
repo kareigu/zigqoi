@@ -107,17 +107,17 @@ pub const Pixel = packed struct {
         const r_diff: i16 = @as(i16, self.r) - @as(i16, previous.r);
         if (r_diff > 1 or r_diff < -2)
             return null;
-        diff |= @as(u6, add_bias(@as(i2, @truncate(r_diff)))) << 4;
+        diff |= @as(u6, add_bias(u2, r_diff)) << 4;
 
         const g_diff: i16 = @as(i16, self.g) - @as(i16, previous.g);
         if (g_diff > 1 or g_diff < -2)
             return null;
-        diff |= @as(u6, add_bias(@as(i2, @truncate(g_diff)))) << 2;
+        diff |= @as(u6, add_bias(u2, g_diff)) << 2;
 
         const b_diff: i16 = @as(i16, self.b) - @as(i16, previous.b);
         if (b_diff > 1 or b_diff < -2)
             return null;
-        diff |= @as(u6, add_bias(@as(i2, @truncate(b_diff)))) << 2;
+        diff |= add_bias(u2, b_diff);
 
         return diff;
     }
@@ -131,17 +131,17 @@ pub const Pixel = packed struct {
         const g_diff = @as(i16, self.g) - @as(i16, previous.g);
         if (g_diff > 31 or g_diff < -32)
             return null;
-        diff[0] |= add_bias(@as(i6, @truncate(g_diff)));
+        diff[0] |= add_bias(u6, g_diff);
 
         const r_diff = (@as(i16, self.r) - @as(i16, previous.r)) - g_diff;
         if (r_diff > 7 or r_diff < -8)
             return null;
-        diff[1] |= @as(u8, add_bias(@as(i4, @truncate(r_diff)))) << 4;
+        diff[1] |= @as(u8, add_bias(u4, r_diff)) << 4;
 
         const b_diff = (@as(i16, self.b) - @as(i16, previous.b)) - g_diff;
         if (b_diff > 7 or b_diff < -8)
             return null;
-        diff[1] |= add_bias(@as(i4, @truncate(b_diff)));
+        diff[1] |= add_bias(u4, b_diff);
 
         return diff;
     }
@@ -368,8 +368,8 @@ fn bias_output_type(comptime T: type) type {
     };
 }
 
-fn add_bias(n: anytype) bias_output_type(@TypeOf(n)) {
-    return @truncate(@as(u16, @intCast(@as(i16, n) + bias_amount(@TypeOf(n)))));
+fn add_bias(comptime T: type, n: anytype) T {
+    return @truncate(@as(u16, @intCast(@as(i16, n) + bias_amount(bias_output_type(T)))));
 }
 
 fn rm_bias(n: anytype) bias_output_type(@TypeOf(n)) {
