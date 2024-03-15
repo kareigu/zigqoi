@@ -216,16 +216,16 @@ pub const QoiImage = struct {
                 const r_diff: u2 = @truncate(instruction >> 4);
                 const g_diff: u2 = @truncate(instruction >> 2);
                 const b_diff: u2 = @truncate(instruction);
-                Pixel.add_signed(&pixel.r, rm_bias(u2, r_diff));
-                Pixel.add_signed(&pixel.g, rm_bias(u2, g_diff));
-                Pixel.add_signed(&pixel.b, rm_bias(u2, b_diff));
+                Pixel.add_signed(&pixel.r, rm_bias(r_diff));
+                Pixel.add_signed(&pixel.g, rm_bias(g_diff));
+                Pixel.add_signed(&pixel.b, rm_bias(b_diff));
             } else if (instruction >> 6 == @intFromEnum(QOI_OP.QOI_OP_LUMA) >> 6) {
-                const g_diff: i8 = rm_bias(u6, @as(u6, @truncate(instruction)));
+                const g_diff: i8 = rm_bias(@as(u6, @truncate(instruction)));
                 Pixel.add_signed(&pixel.g, g_diff);
                 i += 1;
                 const rb_diff = bytes[i];
-                const r_diff: i8 = g_diff + rm_bias(u4, @as(u4, @truncate(rb_diff >> 4)));
-                const b_diff: i8 = g_diff + rm_bias(u4, @as(u4, @truncate(rb_diff)));
+                const r_diff: i8 = g_diff + rm_bias(@as(u4, @truncate(rb_diff >> 4)));
+                const b_diff: i8 = g_diff + rm_bias(@as(u4, @truncate(rb_diff)));
                 Pixel.add_signed(&pixel.r, r_diff);
                 Pixel.add_signed(&pixel.b, b_diff);
             } else if (instruction >> 6 == @intFromEnum(QOI_OP.QOI_OP_RUN) >> 6) {
@@ -331,6 +331,6 @@ fn add_bias(n: anytype) bias_output_type(@TypeOf(n)) {
     return @truncate(@as(u16, @intCast(@as(i16, n) + 2)));
 }
 
-fn rm_bias(comptime T: type, n: T) bias_output_type(T) {
-    return @intCast(@as(i8, n) - bias_amount(bias_output_type(T)));
+fn rm_bias(n: anytype) bias_output_type(@TypeOf(n)) {
+    return @intCast(@as(i8, n) - bias_amount(bias_output_type(@TypeOf(n))));
 }
