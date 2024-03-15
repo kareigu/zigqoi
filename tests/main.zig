@@ -187,31 +187,39 @@ fn test_decode_encode(alloc: std.mem.Allocator, filepath: []const u8) !void {
     }
     std.debug.print("\n", .{});
 
-    image = zigqoi.QoiImage.from_bytes(alloc, bytes) catch |e| {
+    var new_image = zigqoi.QoiImage.from_bytes(alloc, bytes) catch |e| {
         std.debug.print("ERROR: {s}\n", .{@errorName(e)});
         std.process.exit(1);
     };
-    defer image.free(alloc);
+    defer new_image.free(alloc);
     std.debug.print("header for '{s}':\n", .{filepath});
-    std.debug.print("  width: {}\n", .{image.header.width});
-    std.debug.print("  height: {}\n", .{image.header.height});
-    std.debug.print("  channels: {}\n", .{image.header.channels});
-    std.debug.print("  colour_space: {}\n", .{image.header.colour_space});
+    std.debug.print("  width: {}\n", .{new_image.header.width});
+    std.debug.print("  height: {}\n", .{new_image.header.height});
+    std.debug.print("  channels: {}\n", .{new_image.header.channels});
+    std.debug.print("  colour_space: {}\n", .{new_image.header.colour_space});
 
     std.debug.print("pixels:\n", .{});
 
     {
         var x: u32 = 0;
-        for (image.pixels) |pixel| {
+        for (new_image.pixels) |pixel| {
             std.debug.print("\x1b[48;2;{};{};{}m", .{ pixel.r, pixel.g, pixel.b });
             std.debug.print("  ", .{});
             std.debug.print("\x1b[0m", .{});
             x += 1;
-            if (x >= image.header.width) {
+            if (x >= new_image.header.width) {
                 std.debug.print("\n", .{});
                 x = 0;
             }
         }
         std.debug.print("\n", .{});
+    }
+
+    for (new_image.pixels, image.pixels) |new_pixel, old_pixel| {
+        if (!std.meta.eql(new_pixel, old_pixel)) {
+            std.debug.print("Different pixel found:\n", .{});
+            std.debug.print("  should be r = {} g = {} b = {} a = {}\n", .{ new_pixel.r, new_pixel.g, new_pixel.b, new_pixel.a });
+            std.debug.print("  found r = {} g = {} b = {} a = {}\n", .{ old_pixel.r, old_pixel.g, old_pixel.b, old_pixel.a });
+        }
     }
 }
