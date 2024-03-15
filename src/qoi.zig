@@ -261,7 +261,7 @@ pub const QoiImage = struct {
             const pixel = self.pixels[pixel_i];
             if (std.meta.eql(pixel, prev_pixel)) {
                 var j: u64 = 1;
-                while (j + pixel_i < self.pixels.len and std.meta.eql(self.pixels[pixel_i + j], prev_pixel)) {
+                while (j + pixel_i < self.pixels.len and j < 62 and std.meta.eql(self.pixels[pixel_i + j], prev_pixel)) {
                     j += 1;
                 }
                 const run_length: u6 = @truncate(j - 1);
