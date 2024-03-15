@@ -97,6 +97,30 @@ pub const Pixel = packed struct {
     pub fn add_signed(val: *u8, diff: i8) void {
         val.* +%= @bitCast(diff);
     }
+    ///
+    /// Check if pixel could be encoded as QOI_OP_DIFF
+    /// Returns encoded pixels if possible
+    ///
+    pub fn diffable(self: @This(), previous: @TypeOf(self)) ?u6 {
+        var diff: u6 = 0x00;
+
+        const r_diff: i16 = @as(i16, self.r) - @as(i16, previous.r);
+        if (r_diff > 1 or r_diff < -2)
+            return null;
+        diff |= @as(u6, add_bias(@as(i2, @truncate(r_diff)))) << 4;
+
+        const g_diff: i16 = @as(i16, self.g) - @as(i16, previous.g);
+        if (g_diff > 1 or g_diff < -2)
+            return null;
+        diff |= @as(u6, add_bias(@as(i2, @truncate(g_diff)))) << 2;
+
+        const b_diff: i16 = @as(i16, self.b) - @as(i16, previous.b);
+        if (b_diff > 1 or b_diff < -2)
+            return null;
+        diff |= @as(u6, add_bias(@as(i2, @truncate(b_diff)))) << 2;
+
+        return diff;
+    }
 };
 
 const QOI_OP = enum(u8) {
@@ -249,6 +273,10 @@ pub const QoiImage = struct {
                 const byte = @intFromEnum(QOI_OP.QOI_OP_INDEX) | pixel.hash_index();
                 bytes[i] = byte;
                 i += 1;
+            } else if (pixel.diffable(prev_pixel)) |diff| {
+                const byte = @intFromEnum(QOI_OP.QOI_OP_DIFF) | diff;
+                bytes[i] = byte;
+                i += 1;
             } else {
                 bytes[i] = @intFromEnum(QOI_OP.QOI_OP_RGB);
                 i += 1;
@@ -281,21 +309,28 @@ pub const QoiImage = struct {
 
         return false;
     }
-
-    fn bias_amount(comptime T: type) i8 {
-        return std.math.maxInt(T) + 1;
-    }
-
-    fn bias_output_type(comptime T: type) type {
-        return switch (T) {
-            u2 => i2,
-            u4 => i4,
-            u6 => i6,
-            else => @compileError("Unsupported type"),
-        };
-    }
-
-    fn rm_bias(comptime T: type, n: T) bias_output_type(T) {
-        return @intCast(@as(i8, n) - bias_amount(bias_output_type(T)));
-    }
 };
+
+fn bias_amount(comptime T: type) i8 {
+    return std.math.maxInt(T) + 1;
+}
+
+fn bias_output_type(comptime T: type) type {
+    return switch (T) {
+        u2 => i2,
+        u4 => i4,
+        u6 => i6,
+        i2 => u2,
+        i4 => u4,
+        i6 => u6,
+        else => @compileError("Unsupported type"),
+    };
+}
+
+fn add_bias(n: anytype) bias_output_type(@TypeOf(n)) {
+    return @truncate(@as(u16, @intCast(@as(i16, n) + 2)));
+}
+
+fn rm_bias(comptime T: type, n: T) bias_output_type(T) {
+    return @intCast(@as(i8, n) - bias_amount(bias_output_type(T)));
+}
